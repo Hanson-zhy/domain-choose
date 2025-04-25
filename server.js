@@ -1,22 +1,13 @@
-// server.js
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
-
 const app = express();
-const isProduction = process.env.NODE_ENV === 'production';
-const DATA_FILE = path.join(__dirname, 'data.json');
 
-// 配置中间件
 app.use(express.json());
+app.use(express.static('public'));
 
-// 静态文件服务配置
-const staticDir = isProduction ? 
-  path.join(__dirname, 'dist/public') : 
-  path.join(__dirname, 'public');
-app.use(express.static(staticDir));
+const DATA_FILE = 'data.json';
 
-// API 路由
 function readData() {
   try {
     return JSON.parse(fs.readFileSync(DATA_FILE));
@@ -30,12 +21,7 @@ function saveData(data) {
 }
 
 app.get('/api/buttons', (req, res) => {
-  try {
-    const data = readData();
-    res.json(data);
-  } catch (error) {
-    res.status(500).json({ error: '读取数据失败' });
-  }
+  res.json(readData());
 });
 
 app.post('/api/buttons', (req, res) => {
@@ -56,38 +42,22 @@ app.post('/api/buttons', (req, res) => {
   });
 
   if (!isValid) {
-    return res.status(400).json({ error: '无效的数据格式' });
+    return res.status(400).json({ error: '数据校验失败' });
   }
 
-  try {
-    saveData(buttons);
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ error: '保存数据失败' });
-  }
+  saveData(buttons);
+  res.json({ success: true });
 });
 
-// HTML 路由
-app.get(['/', '/admin'], (req, res) => {
-  const filePath = req.path === '/' ? 'index.html' : 'admin.html';
-  res.sendFile(path.join(staticDir, filePath));
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/index.html'));
 });
 
-// 错误处理
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).send('服务器内部错误');
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/admin.html'));
 });
 
-// 启动服务器
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`服务器运行在 ${isProduction ? '生产' : '开发'}模式`);
-  console.log(`访问地址: http://localhost:${PORT}`);
-  
-  // 生产环境提示
-  if (isProduction) {
-    console.log('静态文件目录:', staticDir);
-    console.log('数据文件位置:', DATA_FILE);
-  }
+  console.log(`服务运行中：http://localhost:${PORT}`);
 });
